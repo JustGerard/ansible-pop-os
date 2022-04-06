@@ -3,6 +3,7 @@
 
   vars:
     local_user: "gerard"
+    local_home: "/home/{{ local_user }}"
 
   tasks:
   - name: Install aptitude using apt
@@ -58,12 +59,12 @@
   
   - name: Debug
     debug:
-      msg: "{{ ansible_user_id }}"
+      msg: "LOCAL USER: {{ local_user }}"
 
   - name: Add user to docker group
     become: yes
     user:
-      name: "{{ ansible_user_id }}"
+      name: "{{ local_user }}"
       groups: "docker"
       append: yes
       shell: /usr/bin/zsh
@@ -75,12 +76,30 @@
       mode: 'u+x,g+x'
 
   - name: Test if oh-my-zsh is present
-    become_user: "{{ ansible_user_id }}"
+    become_user: "{{ local_user }}"
     stat:
-      path: "/home/{{ ansible_user_id }}/.oh-my-zsh"
+      path: "{{ local_home }}/.oh-my-zsh"
     register: ohmyzsh
 
-  - name: Install "oh-my-zsh"
-    become_user: "{{ ansible_user_id }}"
+  - name: Install oh-my-zsh
+    become_user: "{{ local_user }}"
     shell: sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+    when: not ohmyzsh.stat.exists
+
+  - name: Install p10k
+    become_user: "{{ local_user }}"
+    git:
+      repo: https://github.com/romkatv/powerlevel10k.git
+      depth: 1 
+      clone: yes
+      dest: "{{ local_home }}/.oh-my-zsh/custom}/themes/powerlevel10k"
+
+  - name: Copy configs
+    become_user: "{{ local_user }}"
+    copy:
+      src: {{ item }}
+      dest: "{{ local_home }}/"
+    with_items:
+      - "./.p10k.zsh"
+      - "./.zshrc"
     when: not ohmyzsh.stat.exists
