@@ -1,0 +1,86 @@
+- hosts: localhost
+  become: no
+
+  vars:
+    local_user: "gerard"
+
+  tasks:
+  - name: Install aptitude using apt
+    apt: name=aptitude state=latest update_cache=yes force_apt_get=yes
+    become: yes
+
+  - name: Install packages
+    apt: name={{item}}
+    become: yes
+    with_items:
+      - htop
+      - tmux
+      - software-properties-common
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - zsh
+      - git
+
+  - name: Add deadsnakes repo
+    apt_repository: repo="ppa:deadsnakes/ppa"
+    become: yes
+
+  - name: Add Docker GPG apt key
+    become: yes
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+        
+  - name: Add Docker repo
+    become: yes
+    apt_repository:
+      repo: deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release}} stable
+      state: present
+
+  - name: Install python
+    apt: update_cache=yes name="python{{item}}-dev" state=present
+    become: yes
+    with_items:
+      - "3.6"
+      - "3.8"
+      - "3.10"
+
+  - name: Install docker
+    become: yes
+    apt: update_cache=yes name="docker-ce" state=latest
+
+  - name: Create docker group
+    become: yes
+    group:
+      name: "docker"
+      state: present
+  
+  - name: Debug
+    debug:
+      msg: "{{ ansible_user_id }}"
+
+  - name: Add user to docker group
+    become: yes
+    user:
+      name: "{{ ansible_user_id }}"
+      groups: "docker"
+      append: yes
+      shell: /usr/bin/zsh
+
+  - name: Install docker-compose
+    get_url:
+      url: https://github.com/docker/compose/releases/download/v2.4.1/docker-compose-{{ ansible_system }}-{{ ansible_userspace_architecture }}
+      dest: /usr/local/bin/docker-compose
+      mode: 'u+x,g+x'
+
+  - name: Test if oh-my-zsh is present
+    become_user: "{{ ansible_user_id }}"
+    stat:
+      path: "/home/{{ ansible_user_id }}/.oh-my-zsh"
+    register: ohmyzsh
+
+  - name: Install "oh-my-zsh"
+    become_user: "{{ ansible_user_id }}"
+    shell: sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+    when: not ohmyzsh.stat.exists
