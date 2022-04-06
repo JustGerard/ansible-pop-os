@@ -1,15 +1,22 @@
 - hosts: localhost
   become: no
 
+  vars_prompt:
+    - name: "local_user"
+      prompt: "username"
+      private: no
+
   vars:
-    local_user: "gerard"
     local_home: "/home/{{ local_user }}"
+    gnome_extensions:
+      - 615 # AppIndicator
+      - 779 # Clipboard Indicator
 
   tasks:
   - name: Install aptitude using apt
     apt: name=aptitude state=latest update_cache=yes force_apt_get=yes
     become: yes
-
+ 
   - name: Install packages
     apt: name={{item}}
     become: yes
@@ -22,6 +29,9 @@
       - curl
       - zsh
       - git
+      - python3-pip
+      - guake
+      - gnome-tweaks
 
   - name: Add deadsnakes repo
     apt_repository: repo="ppa:deadsnakes/ppa"
@@ -69,6 +79,10 @@
       append: yes
       shell: /usr/bin/zsh
 
+  - name: Change shell to zsh
+    command: "chsh -s /usr/bin/zsh {{ local_user }}"
+    become: yes
+
   - name: Install docker-compose
     get_url:
       url: https://github.com/docker/compose/releases/download/v2.4.1/docker-compose-{{ ansible_system }}-{{ ansible_userspace_architecture }}
@@ -92,14 +106,47 @@
       repo: https://github.com/romkatv/powerlevel10k.git
       depth: 1 
       clone: yes
-      dest: "{{ local_home }}/.oh-my-zsh/custom}/themes/powerlevel10k"
+      dest: "{{ local_home }}/.oh-my-zsh/custom/themes/powerlevel10k"
+
+  - name: Install zsh-autosuggestions
+    become_user: "{{ local_user }}"
+    git:
+      repo: https://github.com/zsh-users/zsh-autosuggestions
+      clone: yes
+      dest: "{{ local_home }}/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
+ 
+  - name: Install zsh plugins requirements
+    pip:
+      name: 
+        - thefuck
+        - virtualenvwrapper
 
   - name: Copy configs
     become_user: "{{ local_user }}"
     copy:
-      src: {{ item }}
+      src: "{{ item }}"
       dest: "{{ local_home }}/"
     with_items:
       - "./.p10k.zsh"
       - "./.zshrc"
     when: not ohmyzsh.stat.exists
+
+  - name: Add guake to autostart
+    copy:
+      src: "./guake.desktop"
+      dest: "{{ local_home }}/.config/autostart/"
+
+  - name: Install VSC
+    apt:
+      deb: https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64
+
+  - name: Download gnome extension installer
+    get_url:
+      url: https://github.com/brunelli/gnome-shell-extension-installer/raw/master/gnome-shell-extension-installer
+      dest: /usr/bin/gnome-shell-extension-installer
+      mode: 'u+x,g+x'
+
+  - name: Install clipboard
+    command: "gnome-shell-extension-installer {{ item }}"
+    become_user: "{{ local_user }}"
+    with_items: "{{ gnome_extensions }}"
