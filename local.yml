@@ -11,6 +11,7 @@
     gnome_extensions:
       - 615 # AppIndicator
       - 779 # Clipboard Indicator
+      - 15  # AlternateTab
 
   tasks:
   - name: Install aptitude using apt
@@ -148,5 +149,4 @@
 
   - name: Install clipboard
     command: "gnome-shell-extension-installer {{ item }}"
-    become_user: "{{ local_user }}"
     with_items: "{{ gnome_extensions }}"
