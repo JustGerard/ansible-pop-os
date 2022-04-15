@@ -151,3 +151,4 @@
   - name: Install clipboard
     command: "gnome-shell-extension-installer {{ item }}"
     with_items: "{{ gnome_extensions }}"
+    become: yes
