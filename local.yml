@@ -33,6 +33,7 @@
       - python3-pip
       - guake
       - gnome-tweaks
+      - neofetch
 
   - name: Add deadsnakes repo
     apt_repository: repo="ppa:deadsnakes/ppa"
